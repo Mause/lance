@@ -32,4 +32,5 @@ pub mod index;
 pub mod io;
 pub mod utils;
 
+pub use dataset::Dataset;
 pub use error::{Error, Result};

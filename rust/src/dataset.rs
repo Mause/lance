@@ -32,6 +32,7 @@ use uuid::Uuid;
 pub mod fragment;
 pub mod scanner;
 mod write;
+mod hash_join;
 
 use self::fragment::FileFragment;
 use self::scanner::Scanner;
@@ -335,6 +336,55 @@ impl Dataset {
             base: base.into(),
             manifest: Arc::new(manifest.clone()),
         })
+    }
+
+    /// Merge this dataset with another arrow Table / Dataset, and returns a new version of dataset.
+    ///
+    /// Parameters:
+    ///
+    /// - `stream`: the stream of [`RecordBatch`] to merge.
+    /// - `left_on`: the column name to join on the left side (self).
+    /// - `right_on`: the column name to join on the right side (stream).
+    ///
+    /// Returns: a new version of dataset.
+    ///
+    /// It performs a left-join on the two datasets.
+    pub fn merge(
+        &self,
+        stream: &dyn RecordBatchReader,
+        left_on: &str,
+        right_on: &str,
+    ) -> Result<Self> {
+        // Sanity check.
+        if self.schema().field(left_on).is_none() {
+            return Err(Error::IO(format!(
+                "Column {} does not exist in the left side dataset",
+                left_on
+            )));
+        };
+        let right_schema = stream.schema();
+        if right_schema.field_with_name(right_on).is_err() {
+            return Err(Error::IO(format!(
+                "Column {} does not exist in the right side dataset",
+                right_on
+            )));
+        };
+        for field in right_schema.fields() {
+            if field.name() == right_on {
+                continue;
+            }
+            if self.schema().field(field.name()).is_some() {
+                return Err(Error::IO(format!(
+                    "Column {} exists in both sides of the dataset",
+                    field.name()
+                )));
+            }
+        }
+
+        // Hash join
+
+
+        todo!()
     }
 
     /// Create a Scanner to scan the dataset.
